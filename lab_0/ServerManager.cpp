@@ -27,14 +27,14 @@ private:
 
     int __print_info(std::string str)
     {
-        std::cout << str << std::endl;
+        std::cout << "ServerX: " << str << std::endl;
         return 0;
     }
 
 
     int __print_error(std::string str)
     {
-        std::cerr << "Error: " << str << std::endl;
+        std::cerr << "ServerX: " << "Error: " << str << std::endl;
         return 1;
     }
 
@@ -92,7 +92,8 @@ private:
             // accept() блокирует выполнение до тех пор, пока не придет новое соединение
             // Когда соединение приходит, возвращает новый сокет для общения с клиентом
             if ((client_socket = accept(this->__fd, this->__addr_p, &this->__addr_len)) == -1)
-                this->__print_error("Не удалось принять соединение");
+                if (this->__is_run)
+                    this->__print_error("Не удалось принять соединение");
             // Создание потока для обработки клиента
             this->__threads.emplace_back([this](int client_socket)
                                          { this->__http_manager.handle_client(client_socket); }, client_socket);
@@ -120,7 +121,7 @@ public:
             this->__server_thread = std::thread([this]()
                                                 { this->__run(); });
         }
-        return this->__print_info("Cервер запущен на порту " + std::to_string(port));
+        return this->__print_info("Запуск сервера на порту " + std::to_string(port));
     }
 
 
@@ -131,14 +132,14 @@ public:
         if (this->__is_run)
         {
             this->__is_run = false;
+            shutdown(this->__fd, SHUT_RDWR);
+            close(this->__fd);
+            this->__server_thread.join();
             // Ожидаем завершения всех потоков
             for (auto &t : this->__threads)
                 if (t.joinable())
                     t.join();
-            shutdown(this->__fd, SHUT_RDWR);
-            this->__server_thread.join();
-            close(this->__fd);
-            return this->__print_info("Cервер остановлен");
+            return this->__print_info("Работа сервера остановлена");
         }
         return 1;
     }
